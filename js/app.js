@@ -93,6 +93,8 @@
     }
 
     const PIP_FACES = [1, 2, 3, 4, 5, 6].map((n) => D3.pipFace(n));
+    // Würfelgröße je Anzahl (muss zu .dice-stage[data-n] im CSS passen)
+    const STAGE_SIZE = [0, 140, 116, 88, 88, 76, 76];
 
     // Baut die Würfel neu auf (nur bei Wechsel von Typ oder Anzahl)
     function buildStage() {
@@ -107,10 +109,8 @@
           wrap = D3.createCube(PIP_FACES, 'pipface');
           D3.setCube(wrap, v ? v - 1 : randInt(6), false);
         } else {
-          wrap = el('div', { class: 'cube-wrap flat' }, [
-            el('div', { class: 'cube-shadow' }),
-            el('div', { class: 'cube-hop' }, [el('div', { class: `die d${state.sides}`, text: v ? String(v) : '?' })]),
-          ]);
+          wrap = window.Poly3D.create(state.sides, STAGE_SIZE[Math.min(state.count, 6)]);
+          window.Poly3D.set(wrap, v ? v - 1 : randInt(state.sides), false);
         }
         nodes.push(wrap);
         stage.appendChild(wrap);
@@ -167,10 +167,7 @@
         if (sides === 6) {
           D3.setCube(wrap, final[i] - 1, true, delay);
         } else {
-          const face = wrap.querySelector('.die');
-          D3.tumble(face, delay);
-          setTimeout(() => D3.flicker(D3.TOSS_MS, () => { face.textContent = randInt(sides) + 1; }), delay);
-          setTimeout(() => { face.textContent = final[i]; }, delay + D3.TOSS_MS * 0.8 + 5);
+          window.Poly3D.set(wrap, final[i] - 1, true, delay);
         }
       });
       setTimeout(() => {
@@ -286,7 +283,7 @@
         const delay = k++ * STAGGER;
         wrap.classList.remove('idle');
         D3.toss(wrap, delay);
-        D3.setCube(wrap, final[i], true, delay);
+        D3.setCube(wrap, final[i], true, delay, true);
       });
       setTimeout(() => {
         s.dice = final;
@@ -332,7 +329,7 @@
       box.innerHTML = '';
       cubes = [0, 1, 2, 3, 4].map((i) => {
         const wrap = D3.createCube(D3.POKER_FACES, 'cardface');
-        D3.setCube(wrap, randInt(6), false);
+        D3.setCube(wrap, randInt(6), false, 0, true);
         wrap.setAttribute('role', 'button');
         wrap.addEventListener('click', () => toggleHold(i));
         box.appendChild(wrap);
@@ -353,7 +350,7 @@
         const wrap = cubes[i];
         wrap.classList.toggle('idle', d == null);
         wrap.classList.toggle('held', !!s.held[i] && s.rollsUsed > 0);
-        if (d != null && wrap._value !== d) D3.setCube(wrap, d, false);
+        if (d != null && wrap._value !== d) D3.setCube(wrap, d, false, 0, true);
         wrap.setAttribute('aria-label', d == null ? 'Noch nicht gewürfelt' : SINGULAR[d] + (s.held[i] ? ', gehalten' : ''));
       });
     }

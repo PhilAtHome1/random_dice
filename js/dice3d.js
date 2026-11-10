@@ -24,7 +24,7 @@
   }
 
   // Dreht den Würfel auf Wert v. Mit animate=true überschlägt er sich dabei mehrfach.
-  function setCube(wrap, v, animate, delay) {
+  function setCube(wrap, v, animate, delay, straight) {
     const cube = wrap.querySelector('.cube');
     const [tx, ty] = ORIENT[v];
     const r = wrap._rot;
@@ -36,11 +36,11 @@
       const turnsY = 1 + Math.floor(Math.random() * 2);
       x = tx + 360 * Math.ceil((r.x + 360 * turnsX - tx) / 360);
       y = ty + 360 * Math.ceil((r.y + 360 * turnsY - ty) / 360);
-      z = 360 * Math.round(r.z / 360) + (Math.random() < 0.5 ? -360 : 360) + rnd(-10, 10);
+      z = 360 * Math.round(r.z / 360) + (Math.random() < 0.5 ? -360 : 360) + (straight ? 0 : rnd(-10, 10));
     } else {
       x = tx + 360 * Math.round((r.x - tx) / 360);
       y = ty + 360 * Math.round((r.y - ty) / 360);
-      z = 360 * Math.round(r.z / 360) + rnd(-6, 6);
+      z = 360 * Math.round(r.z / 360) + (straight ? 0 : rnd(-6, 6));
     }
     wrap._rot = { x, y, z };
     wrap._value = v;
@@ -78,29 +78,6 @@
         { offset: 0.85, transform: 'scale(.95)', opacity: 0.9 },
         { offset: 1, transform: 'scale(1)', opacity: 1 },
       ], opts);
-    }
-  }
-
-  // Für flache Würfel (W8–W20): 3D-Taumeln der Form selbst.
-  function tumble(node, delay) {
-    const a = 360 * (2 + Math.floor(Math.random() * 2)) * (Math.random() < 0.5 ? -1 : 1);
-    const b = 360 * (1 + Math.floor(Math.random() * 2)) * (Math.random() < 0.5 ? -1 : 1);
-    const c = rnd(-540, 540);
-    const tilt = rnd(-8, 8);
-    node.animate([
-      { transform: `perspective(500px) rotateX(${a}deg) rotateY(${b}deg) rotateZ(${c}deg) scale(.75)` },
-      { transform: `perspective(500px) rotateX(0deg) rotateY(0deg) rotateZ(${tilt}deg) scale(1)` },
-    ], { duration: TOSS_MS, delay: delay || 0, easing: 'cubic-bezier(.15,.6,.25,1)', fill: 'both' });
-  }
-
-  // Ruft cb in immer längeren Abständen auf (Zahlen „rollen aus“).
-  function flicker(durationMs, cb) {
-    let t = 0;
-    let gap = 40;
-    while (t + gap < durationMs * 0.8) {
-      t += gap;
-      setTimeout(cb, t);
-      gap *= 1.17;
     }
   }
 
@@ -212,5 +189,5 @@
       suit('spade', 50, 49, 44, BLACK)),
   ];
 
-  root.Dice3D = { createCube, setCube, toss, tumble, flicker, pipFace, TOSS_MS, POKER_FACES };
+  root.Dice3D = { createCube, setCube, toss, pipFace, TOSS_MS, POKER_FACES };
 })(this);

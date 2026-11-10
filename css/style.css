@@ -154,19 +154,9 @@ main {
   box-shadow: 0 1px 0 rgba(255,255,255,.4);
 }
 
-/* Flache Würfel (W8–W20) */
-.die {
-  width: 100%; height: 100%;
-  display: grid; place-items: center;
-  font-weight: 800;
-  color: #1b1300;
-  will-change: transform;
-}
-.die.d8 { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); background: linear-gradient(145deg, #bfdbfe, #3b82f6 60%, #1d4ed8); }
-.die.d10 { clip-path: polygon(50% 0, 100% 42%, 50% 100%, 0 42%); background: linear-gradient(145deg, #bbf7d0, #22c55e 60%, #15803d); padding-top: 10%; }
-.die.d12 { clip-path: polygon(50% 0, 98% 35%, 80% 95%, 20% 95%, 2% 35%); background: linear-gradient(145deg, #fbcfe8, #ec4899 60%, #be185d); padding-top: 8%; }
-.die.d20 { clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%); background: linear-gradient(145deg, #ddd6fe, #8b5cf6 60%, #6d28d9); }
-.die.d8, .die.d10, .die.d12, .die.d20 { font-size: calc(var(--size) * .3); }
+/* Vielflächner (W8–W20), gezeichnet auf Canvas */
+.poly .cube-hop { position: relative; }
+.poly canvas { position: absolute; display: block; }
 
 .sum-line { text-align: center; font-size: 20px; font-weight: 700; margin: 10px 0 0; min-height: 28px; }
 
