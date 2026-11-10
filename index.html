@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Würfelbox</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Würfelbox">
+  <meta name="theme-color" content="#14213d">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main>
+    <!-- ===================== WÜRFEL ===================== -->
+    <section id="view-dice" class="view active">
+      <header class="topbar"><h1>Würfel</h1></header>
+
+      <div class="chips" id="die-types" role="radiogroup" aria-label="Würfeltyp">
+        <button data-sides="6" class="chip">W6</button>
+        <button data-sides="8" class="chip">W8</button>
+        <button data-sides="10" class="chip">W10</button>
+        <button data-sides="12" class="chip">W12</button>
+        <button data-sides="20" class="chip">W20</button>
+      </div>
+
+      <div class="row-center count-row">
+        <span>Anzahl</span>
+        <button class="round-btn" id="die-count-minus" aria-label="Weniger Würfel">−</button>
+        <strong id="die-count">1</strong>
+        <button class="round-btn" id="die-count-plus" aria-label="Mehr Würfel">+</button>
+      </div>
+
+      <button id="dice-stage" class="dice-stage" aria-label="Würfeln"></button>
+      <p class="sum-line" id="dice-sum">&nbsp;</p>
+
+      <button class="primary big" id="roll-dice">Würfeln</button>
+      <p class="hint">Tipp: Du kannst auch direkt auf die Würfel tippen.</p>
+
+      <h2 class="subhead">Verlauf</h2>
+      <ol class="history" id="dice-history"></ol>
+    </section>
+
+    <!-- ===================== POKER ===================== -->
+    <section id="view-poker" class="view">
+      <header class="topbar">
+        <h1>Würfelpoker</h1>
+        <button class="text-btn" id="poker-menu" hidden>Beenden</button>
+      </header>
+
+      <!-- Setup -->
+      <div id="poker-setup">
+        <div class="card">
+          <div class="row-between">
+            <span>Spieler</span>
+            <div class="stepper">
+              <button class="round-btn" id="players-minus" aria-label="Weniger Spieler">−</button>
+              <strong id="players-count">2</strong>
+              <button class="round-btn" id="players-plus" aria-label="Mehr Spieler">+</button>
+            </div>
+          </div>
+          <div id="player-names" class="player-names"></div>
+        </div>
+        <div class="card">
+          <div class="row-between">
+            <span>Runden</span>
+            <div class="stepper">
+              <button class="round-btn" id="rounds-minus" aria-label="Weniger Runden">−</button>
+              <strong id="rounds-count">14</strong>
+              <button class="round-btn" id="rounds-plus" aria-label="Mehr Runden">+</button>
+            </div>
+          </div>
+          <p class="hint left">Pro Runde trägt jeder Spieler genau ein Feld ein. Bei 14 Runden wird der ganze Zettel gefüllt.</p>
+        </div>
+        <button class="primary big" id="poker-start">Spiel starten</button>
+        <details class="card rules">
+          <summary>Regeln &amp; Punkte</summary>
+          <p>Pro Zug darfst du bis zu <b>3-mal</b> würfeln. Tippe Würfel an, um sie festzuhalten. Danach wählst du ein freies Feld aus deiner Liste. Passt nichts, musst du ein Feld mit 0 Punkten streichen.</p>
+          <p>Würfelwerte: 9 = 1, 10 = 2, Bube = 3, Dame = 4, König = 5, Ass = 6.</p>
+          <ul>
+            <li><b>Neuner … Asse:</b> Summe der passenden Würfel</li>
+            <li><b>Bonus:</b> +35, wenn oben mindestens 63 Punkte</li>
+            <li><b>Paar / Zwei Paar:</b> Summe der Paar-Würfel</li>
+            <li><b>Drilling / Vierling:</b> Summe aller Würfel</li>
+            <li><b>Full House:</b> 25 · <b>Straße:</b> 40 · <b>Poker:</b> 50</li>
+            <li><b>Chance:</b> Summe aller Würfel</li>
+          </ul>
+        </details>
+      </div>
+
+      <!-- Laufendes Spiel -->
+      <div id="poker-game" hidden>
+        <div class="standings" id="standings"></div>
+        <div class="turn-info">
+          <span id="turn-round"></span>
+          <strong id="turn-player"></strong>
+        </div>
+        <div class="poker-dice" id="poker-dice"></div>
+        <p class="hint" id="hold-hint">&nbsp;</p>
+        <button class="primary big" id="poker-roll">Würfeln</button>
+        <ul class="scorecard" id="scorecard"></ul>
+        <div class="commit-bar" id="commit-bar" hidden>
+          <button class="primary big" id="commit-btn"></button>
+        </div>
+      </div>
+
+      <!-- Ergebnis -->
+      <div id="poker-result" hidden>
+        <div class="card winner" id="winner"></div>
+        <div class="table-wrap"><table class="result-table" id="result-table"></table></div>
+        <button class="primary big" id="poker-again">Nochmal mit gleichen Spielern</button>
+        <button class="secondary big" id="poker-new">Neues Spiel</button>
+      </div>
+    </section>
+
+    <!-- ===================== GLÜCKSRAD ===================== -->
+    <section id="view-wheel" class="view">
+      <header class="topbar"><h1>Glücksrad</h1></header>
+
+      <div class="wheel-wrap">
+        <div class="wheel-pointer" aria-hidden="true"></div>
+        <canvas id="wheel" aria-label="Glücksrad"></canvas>
+        <button class="wheel-center" id="spin-btn">DREH</button>
+      </div>
+      <p class="wheel-result" id="wheel-result">&nbsp;</p>
+
+      <div class="card">
+        <label class="toggle">
+          <input type="checkbox" id="wheel-remove">
+          <span>Gezogenen Eintrag aus dem Rad entfernen</span>
+        </label>
+        <button class="secondary" id="wheel-reset" hidden>Alle wieder ins Rad</button>
+      </div>
+
+      <form class="add-row" id="wheel-add">
+        <input id="wheel-input" type="text" placeholder="Neuer Eintrag…" maxlength="40" autocomplete="off" enterkeyhint="done">
+        <button class="primary" type="submit">+</button>
+      </form>
+      <ul class="entry-list" id="wheel-entries"></ul>
+    </section>
+  </main>
+
+  <!-- Overlay für Spielerwechsel / Hinweise -->
+  <div class="overlay" id="overlay" hidden>
+    <div class="overlay-card">
+      <p id="overlay-text"></p>
+      <div class="overlay-actions" id="overlay-actions"></div>
+    </div>
+  </div>
+
+  <nav class="tabbar">
+    <button data-view="view-dice" class="active"><span class="ico">🎲</span>Würfel</button>
+    <button data-view="view-poker"><span class="ico">🃏</span>Poker</button>
+    <button data-view="view-wheel"><span class="ico">🎡</span>Glücksrad</button>
+  </nav>
+
+  <script src="js/poker.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
