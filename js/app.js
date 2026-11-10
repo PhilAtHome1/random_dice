@@ -76,9 +76,10 @@
 
   // ================================================================ WÜRFEL
   const DiceUI = (() => {
-    const state = Object.assign({ sides: 6, count: 1, history: [] }, store.get('dice', {}));
-    let values = [];
+    const D3 = window.Dice3D;
+    const state = Object.assign({ sides: 6, count: 1, history: [], last: [] }, store.get('dice', {}));
     let rolling = false;
+    let nodes = [];
 
     function save() { store.set('dice', state); }
 
@@ -91,21 +92,48 @@
       $('die-count').textContent = state.count;
     }
 
-    function renderStage() {
+    const PIP_FACES = [1, 2, 3, 4, 5, 6].map((n) => D3.pipFace(n));
+
+    // Baut die Würfel neu auf (nur bei Wechsel von Typ oder Anzahl)
+    function buildStage() {
       const stage = $('dice-stage');
       stage.innerHTML = '';
+      stage.dataset.n = state.count;
+      nodes = [];
       for (let i = 0; i < state.count; i++) {
-        const v = values[i];
-        stage.appendChild(el('div', {
-          class: `die d${state.sides} n${state.count}`,
-          text: v == null ? '?' : String(v),
-        }));
+        const v = state.last[i];
+        let wrap;
+        if (state.sides === 6) {
+          wrap = D3.createCube(PIP_FACES, 'pipface');
+          D3.setCube(wrap, v ? v - 1 : randInt(6), false);
+        } else {
+          wrap = el('div', { class: 'cube-wrap flat' }, [
+            el('div', { class: 'cube-shadow' }),
+            el('div', { class: 'cube-hop' }, [el('div', { class: `die d${state.sides}`, text: v ? String(v) : '?' })]),
+          ]);
+        }
+        nodes.push(wrap);
+        stage.appendChild(wrap);
       }
-      if (values.length && state.count > 1) {
-        $('dice-sum').textContent = 'Summe: ' + values.reduce((a, b) => a + b, 0);
+      renderSum();
+    }
+
+    function renderSum() {
+      const v = state.last;
+      if (v.length === state.count && state.count > 1) {
+        $('dice-sum').textContent = 'Summe: ' + v.reduce((a, b) => a + b, 0);
       } else {
         $('dice-sum').innerHTML = '&nbsp;';
       }
+    }
+
+    function changeSetup(fn) {
+      if (rolling) return;
+      fn();
+      state.last = [];
+      save();
+      renderTypes();
+      buildStage();
     }
 
     function renderHistory() {
@@ -128,50 +156,49 @@
     function roll() {
       if (rolling) return;
       rolling = true;
-      const final = Array.from({ length: state.count }, () => randInt(state.sides) + 1);
-      const start = performance.now();
-      values = [];
-      renderStage();
-      const nodes = [...$('dice-stage').querySelectorAll('.die')];
-      nodes.forEach((d) => d.classList.add('rolling'));
+      $('roll-dice').disabled = true;
+      const sides = state.sides;
+      const final = Array.from({ length: state.count }, () => randInt(sides) + 1);
       $('dice-sum').innerHTML = '&nbsp;';
-      const flicker = () => {
-        if (performance.now() - start < 420) {
-          nodes.forEach((d) => { d.textContent = randInt(state.sides) + 1; });
-          setTimeout(flicker, 60);
+      const STAGGER = 80;
+      nodes.forEach((wrap, i) => {
+        const delay = i * STAGGER;
+        D3.toss(wrap, delay);
+        if (sides === 6) {
+          D3.setCube(wrap, final[i] - 1, true, delay);
         } else {
-          values = final;
-          renderStage();
-          state.history.unshift({ s: state.sides, v: final });
-          state.history = state.history.slice(0, 15);
-          save();
-          renderHistory();
-          rolling = false;
+          const face = wrap.querySelector('.die');
+          D3.tumble(face, delay);
+          setTimeout(() => D3.flicker(D3.TOSS_MS, () => { face.textContent = randInt(sides) + 1; }), delay);
+          setTimeout(() => { face.textContent = final[i]; }, delay + D3.TOSS_MS * 0.8 + 5);
         }
-      };
-      flicker();
+      });
+      setTimeout(() => {
+        state.last = final;
+        state.history.unshift({ s: sides, v: final });
+        state.history = state.history.slice(0, 15);
+        save();
+        renderSum();
+        renderHistory();
+        rolling = false;
+        $('roll-dice').disabled = false;
+      }, D3.TOSS_MS + (nodes.length - 1) * STAGGER);
     }
 
     function init() {
       document.querySelectorAll('#die-types .chip').forEach((c) => {
-        c.addEventListener('click', () => {
-          state.sides = Number(c.dataset.sides);
-          values = [];
-          save();
-          renderTypes();
-          renderStage();
-        });
+        c.addEventListener('click', () => changeSetup(() => { state.sides = Number(c.dataset.sides); }));
       });
       $('die-count-minus').addEventListener('click', () => {
-        if (state.count > 1) { state.count--; values = []; save(); renderTypes(); renderStage(); }
+        if (state.count > 1) changeSetup(() => { state.count--; });
       });
       $('die-count-plus').addEventListener('click', () => {
-        if (state.count < 6) { state.count++; values = []; save(); renderTypes(); renderStage(); }
+        if (state.count < 6) changeSetup(() => { state.count++; });
       });
       $('roll-dice').addEventListener('click', roll);
       $('dice-stage').addEventListener('click', roll);
       renderTypes();
-      renderStage();
+      buildStage();
       renderHistory();
     }
 
@@ -182,8 +209,9 @@
   const PokerUI = (() => {
     const P = window.Poker;
     const MAX_ROUNDS = P.CATEGORIES.length;
-    const SUITS = ['♣', '♦', '♥', '♠', '♚', '★'];
+    const D3 = window.Dice3D;
     const SINGULAR = ['Neun', 'Zehn', 'Bube', 'Dame', 'König', 'Ass'];
+    let cubes = [];
 
     const defaults = {
       phase: 'setup',
@@ -247,37 +275,33 @@
       animating = true;
       if (s.rollsUsed === 0) s.held = [false, false, false, false, false];
       const final = s.dice.map((d, i) => (s.held[i] && d != null ? d : randInt(6)));
-      const start = performance.now();
       selected = null;
       $('commit-bar').hidden = true;
       $('poker-roll').disabled = true;
-      renderDice(true);
-      const nodes = [...$('poker-dice').children];
-      const step = () => {
-        if (performance.now() - start < 420) {
-          nodes.forEach((n, i) => {
-            if (s.held[i]) return;
-            const f = randInt(6);
-            n.className = 'pdie rolling f' + f;
-            n.firstChild.textContent = P.FACES[f].label;
-          });
-          setTimeout(step, 60);
-        } else {
-          s.dice = final;
-          s.rollsUsed++;
-          animating = false;
-          save();
-          renderGame();
-        }
-      };
-      step();
+      renderScorecard();
+      const STAGGER = 70;
+      let k = 0;
+      cubes.forEach((wrap, i) => {
+        if (s.held[i] && s.dice[i] != null) return;
+        const delay = k++ * STAGGER;
+        wrap.classList.remove('idle');
+        D3.toss(wrap, delay);
+        D3.setCube(wrap, final[i], true, delay);
+      });
+      setTimeout(() => {
+        s.dice = final;
+        s.rollsUsed++;
+        animating = false;
+        save();
+        renderGame();
+      }, D3.TOSS_MS + (k - 1) * STAGGER);
     }
 
     function toggleHold(i) {
       if (animating || s.rollsUsed === 0 || s.rollsUsed >= 3) return;
       s.held[i] = !s.held[i];
       save();
-      renderDice(false);
+      renderDice();
       renderHint();
     }
 
@@ -303,21 +327,34 @@
       announceTurn();
     }
 
-    function renderDice(rollingNow) {
+    function buildCubes() {
       const box = $('poker-dice');
       box.innerHTML = '';
+      cubes = [0, 1, 2, 3, 4].map((i) => {
+        const wrap = D3.createCube(D3.POKER_FACES, 'cardface');
+        D3.setCube(wrap, randInt(6), false);
+        wrap.setAttribute('role', 'button');
+        wrap.addEventListener('click', () => toggleHold(i));
+        box.appendChild(wrap);
+        return wrap;
+      });
+    }
+
+    function sizeCubes() {
+      const box = $('poker-dice');
+      const w = box.clientWidth;
+      if (!w) return;
+      box.style.setProperty('--size', Math.min(84, Math.floor((w - 4 * 10) / 5)) + 'px');
+    }
+
+    function renderDice() {
+      sizeCubes();
       s.dice.forEach((d, i) => {
-        const cls = ['pdie'];
-        if (d == null) cls.push('empty');
-        else cls.push('f' + d);
-        if (s.held[i] && s.rollsUsed > 0) cls.push('held');
-        if (rollingNow && !s.held[i]) cls.push('rolling');
-        const btn = el('button', {
-          class: cls.join(' '),
-          'aria-label': d == null ? 'Noch nicht gewürfelt' : SINGULAR[d] + (s.held[i] ? ', gehalten' : ''),
-          onclick: () => toggleHold(i),
-        }, d == null ? ['?'] : [P.FACES[d].label, el('span', { class: 'suit', text: SUITS[d] })]);
-        box.appendChild(btn);
+        const wrap = cubes[i];
+        wrap.classList.toggle('idle', d == null);
+        wrap.classList.toggle('held', !!s.held[i] && s.rollsUsed > 0);
+        if (d != null && wrap._value !== d) D3.setCube(wrap, d, false);
+        wrap.setAttribute('aria-label', d == null ? 'Noch nicht gewürfelt' : SINGULAR[d] + (s.held[i] ? ', gehalten' : ''));
       });
     }
 
@@ -407,7 +444,7 @@
       $('turn-round').textContent = `Runde ${s.round} von ${s.rounds}`;
       $('turn-player').textContent = s.players[s.current].name;
       renderStandings();
-      renderDice(false);
+      renderDice();
       renderHint();
       renderScorecard();
       renderCommit();
@@ -487,6 +524,8 @@
         if (s.setup.rounds < MAX_ROUNDS) { s.setup.rounds++; save(); renderSetup(); }
       });
       $('poker-start').addEventListener('click', () => startGame(s.setup.names, s.setup.rounds));
+      buildCubes();
+      window.addEventListener('resize', sizeCubes);
       $('poker-roll').addEventListener('click', roll);
       $('commit-btn').addEventListener('click', commit);
       $('poker-menu').addEventListener('click', () => {
