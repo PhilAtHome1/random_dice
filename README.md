@@ -42,4 +42,13 @@ Passt nichts, muss ein Feld mit 0 gestrichen werden. Gewinner ist, wer nach den 
 Lokal starten: `python3 -m http.server` und http://localhost:8000 öffnen.
 Tests der Punktewertung: `node --test tests/*.test.js`
 
-Nach Änderungen an den Dateien die Cache-Version in `sw.js` erhöhen, damit installierte Apps das Update laden.
+Bei jeder neuen Version die Versionsnummer an **drei Stellen** gleich erhöhen:
+`?v=` an den Skripten/CSS in `index.html`, das Label „Version …“ in `index.html` und `CACHE`/`V` in `sw.js`.
+Installierte Apps laden das Update dann beim nächsten Öffnen bzw. wenn sie in den Vordergrund kommen.
+
+## Update kommt nicht an?
+
+Unten auf der Würfel-Seite steht die laufende Version. Ist sie alt:
+1. App komplett schließen (vom unteren Rand hochwischen, App nach oben wegwischen) und neu öffnen.
+2. Hilft das nicht: Einstellungen → Safari → Erweitert → Website-Daten → `github.io` löschen,
+   App-Symbol vom Home-Bildschirm entfernen und über Safari neu hinzufügen.
