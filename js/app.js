@@ -215,10 +215,15 @@
       setup: { names: ['Spieler 1', 'Spieler 2'], rounds: MAX_ROUNDS },
     };
     let s = Object.assign({}, defaults, store.get('poker', {}));
+    s.setup.cpu = s.setup.cpu || [];
+    s.setup.level = s.setup.level || 'hard';
     let selected = null;
     let animating = false;
+    let aiTimer = null;
 
     function save() { store.set('poker', s); }
+    const isCpu = () => s.phase === 'game' && !!s.players[s.current].cpu;
+    const label = (p) => (p.cpu ? '🤖 ' : '') + p.name;
 
     // ---------- Setup
     function renderSetup() {
@@ -228,24 +233,59 @@
       const box = $('player-names');
       box.innerHTML = '';
       names.forEach((n, i) => {
+        const cpu = !!s.setup.cpu[i];
         const input = el('input', {
           type: 'text', value: n, maxlength: '16', 'aria-label': `Name Spieler ${i + 1}`,
           autocomplete: 'off', enterkeyhint: 'done',
         });
         input.addEventListener('input', () => { s.setup.names[i] = input.value; save(); });
         input.addEventListener('focus', () => input.select());
-        box.appendChild(input);
+        const btn = el('button', {
+          class: 'cpu-btn' + (cpu ? ' on' : ''),
+          text: cpu ? '🤖' : '👤',
+          'aria-label': cpu ? `Platz ${i + 1}: Computer` : `Platz ${i + 1}: Mensch`,
+          onclick: () => toggleCpu(i),
+        });
+        box.appendChild(el('div', { class: 'player-row' }, [btn, input]));
+      });
+      const anyCpu = names.some((_, i) => s.setup.cpu[i]);
+      $('cpu-level').hidden = !anyCpu;
+      document.querySelectorAll('#cpu-level button').forEach((b) => {
+        const on = b.dataset.level === s.setup.level;
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-checked', on);
       });
     }
 
-    function startGame(names, rounds) {
+    function toggleCpu(i) {
+      const on = !s.setup.cpu[i];
+      s.setup.cpu[i] = on;
+      const name = (s.setup.names[i] || '').trim();
+      if (on && (!name || /^Spieler \d+$/.test(name))) {
+        const others = s.setup.cpu.filter((c, j) => c && j !== i).length;
+        s.setup.names[i] = others ? `Computer ${others + 1}` : 'Computer';
+      } else if (!on && /^Computer( \d+)?$/.test(name)) {
+        s.setup.names[i] = `Spieler ${i + 1}`;
+      }
+      save();
+      renderSetup();
+    }
+
+    // players: [{ name, cpu }]
+    function startGame(players, rounds) {
+      stopAI();
       s = {
         phase: 'game',
         setup: s.setup,
+        level: s.setup.level,
         rounds,
         round: 1,
         current: 0,
-        players: names.map((n, i) => ({ name: (n || '').trim() || `Spieler ${i + 1}`, scores: {} })),
+        players: players.map((p, i) => ({
+          name: (p.name || '').trim() || (p.cpu ? 'Computer' : `Spieler ${i + 1}`),
+          cpu: !!p.cpu,
+          scores: {},
+        })),
       };
       resetTurn();
       save();
@@ -261,14 +301,43 @@
     }
 
     function announceTurn() {
-      if (s.players.length > 1) {
+      if (isCpu()) { aiSchedule(aiStep, 900); return; }
+      // Handy weitergeben nur nötig, wenn mehrere Menschen mitspielen
+      if (s.players.filter((p) => !p.cpu).length > 1) {
         showOverlay(`${s.players[s.current].name} ist dran`, [{ label: 'Los geht\'s' }]);
       }
     }
 
+    // ---------- Computer
+    function stopAI() { clearTimeout(aiTimer); aiTimer = null; }
+    function aiSchedule(fn, ms) {
+      stopAI();
+      aiTimer = setTimeout(() => { aiTimer = null; fn(); }, ms);
+    }
+
+    // Ein Schritt des Computers: würfeln, Würfel festhalten oder Feld eintragen
+    function aiStep() {
+      if (!isCpu() || animating) return;
+      if (s.rollsUsed === 0) { roll(true); return; }
+      const me = s.players[s.current];
+      const d = window.PokerAI.decide(s.dice, 3 - s.rollsUsed, me.scores, s.rounds - s.round + 1, s.level);
+      if (d.hold) {
+        s.held = d.hold;
+        save();
+        renderDice();
+        renderHint();
+        aiSchedule(() => roll(true), 800);
+      } else {
+        selected = d.category;
+        renderScorecard();
+        renderCommit();
+        aiSchedule(() => commit(true), 1400);
+      }
+    }
+
     // ---------- Spiel
-    function roll() {
-      if (animating || s.rollsUsed >= 3) return;
+    function roll(byAI) {
+      if (animating || s.rollsUsed >= 3 || (isCpu() && byAI !== true)) return;
       animating = true;
       if (s.rollsUsed === 0) s.held = [false, false, false, false, false];
       const final = s.dice.map((d, i) => (s.held[i] && d != null ? d : randInt(6)));
@@ -291,19 +360,20 @@
         animating = false;
         save();
         renderGame();
+        if (isCpu()) aiSchedule(aiStep, 600);
       }, D3.TOSS_MS + (k - 1) * STAGGER);
     }
 
     function toggleHold(i) {
-      if (animating || s.rollsUsed === 0 || s.rollsUsed >= 3) return;
+      if (animating || isCpu() || s.rollsUsed === 0 || s.rollsUsed >= 3) return;
       s.held[i] = !s.held[i];
       save();
       renderDice();
       renderHint();
     }
 
-    function commit() {
-      if (!selected || s.rollsUsed === 0) return;
+    function commit(byAI) {
+      if (!selected || s.rollsUsed === 0 || (isCpu() && byAI !== true)) return;
       const player = s.players[s.current];
       player.scores[selected] = P.scoreFor(selected, s.dice);
       s.current++;
@@ -358,6 +428,12 @@
     function renderHint() {
       const left = 3 - s.rollsUsed;
       const hint = $('hold-hint');
+      if (isCpu()) {
+        hint.textContent = s.rollsUsed === 0 ? '🤖 Der Computer ist am Zug …' : `🤖 Der Computer überlegt … (${left} ${left === 1 ? 'Wurf' : 'Würfe'} übrig)`;
+        $('poker-roll').disabled = true;
+        $('poker-roll').textContent = 'Computer spielt …';
+        return;
+      }
       if (s.rollsUsed === 0) hint.textContent = 'Würfle, um deinen Zug zu beginnen.';
       else if (left > 0) hint.textContent = 'Tippe Würfel zum Festhalten · oder wähle unten ein Feld.';
       else hint.textContent = 'Keine Würfe mehr – wähle unten ein Feld.';
@@ -372,7 +448,7 @@
       s.players.forEach((p, i) => {
         box.appendChild(el('span', {
           class: 'pill' + (i === s.current ? ' current' : ''),
-          text: `${p.name}: ${P.totals(p.scores).total}`,
+          text: `${label(p)}: ${P.totals(p.scores).total}`,
         }));
       });
     }
@@ -415,7 +491,7 @@
           el('span', { class: 'name' }, [cat.name, el('span', { class: 'desc', text: cat.hint })]),
           el('span', { class: 'val', text: val }),
         ]);
-        if (!used && rolled) {
+        if (!used && rolled && !isCpu()) {
           li.setAttribute('role', 'button');
           li.addEventListener('click', () => {
             selected = selected === cat.id ? null : cat.id;
@@ -433,13 +509,16 @@
       if (!selected || s.rollsUsed === 0) { bar.hidden = true; return; }
       const cat = P.CATEGORIES.find((c) => c.id === selected);
       const pts = P.scoreFor(selected, s.dice);
-      $('commit-btn').textContent = pts === 0 ? `${cat.name} streichen (0)` : `${cat.name} eintragen (+${pts})`;
+      const btn = $('commit-btn');
+      btn.disabled = isCpu();
+      if (isCpu()) btn.textContent = pts === 0 ? `🤖 streicht ${cat.name} (0)` : `🤖 trägt ein: ${cat.name} (+${pts})`;
+      else btn.textContent = pts === 0 ? `${cat.name} streichen (0)` : `${cat.name} eintragen (+${pts})`;
       bar.hidden = false;
     }
 
     function renderGame() {
       $('turn-round').textContent = `Runde ${s.round} von ${s.rounds}`;
-      $('turn-player').textContent = s.players[s.current].name;
+      $('turn-player').textContent = label(s.players[s.current]);
       renderStandings();
       renderDice();
       renderHint();
@@ -450,7 +529,7 @@
     // ---------- Ergebnis
     function renderResult() {
       const ranked = s.players
-        .map((p) => ({ name: p.name, t: P.totals(p.scores) }))
+        .map((p) => ({ name: label(p), t: P.totals(p.scores) }))
         .sort((a, b) => b.t.total - a.t.total);
       const best = ranked[0].t.total;
       const winners = ranked.filter((r) => r.t.total === best).map((r) => r.name);
@@ -473,7 +552,7 @@
 
       const table = $('result-table');
       table.innerHTML = '';
-      const head = el('tr', {}, [el('th', { text: '' }), ...s.players.map((p) => el('th', { text: p.name }))]);
+      const head = el('tr', {}, [el('th', { text: '' }), ...s.players.map((p) => el('th', { text: label(p) }))]);
       table.appendChild(el('thead', {}, [head]));
       const body = el('tbody');
       const row = (label, values, cls) =>
@@ -499,17 +578,24 @@
       $('poker-menu').hidden = s.phase !== 'game';
       if (s.phase !== 'game') $('commit-bar').hidden = true;
       if (s.phase === 'setup') renderSetup();
-      if (s.phase === 'game') renderGame();
+      if (s.phase === 'game') {
+        renderGame();
+        // Nach Neustart der App einen laufenden Computerzug fortsetzen
+        if (isCpu() && !aiTimer && !animating) aiSchedule(aiStep, 900);
+      } else {
+        stopAI();
+      }
       if (s.phase === 'result') renderResult();
     }
 
     function init() {
       $('players-minus').addEventListener('click', () => {
-        if (s.setup.names.length > 1) { s.setup.names.pop(); save(); renderSetup(); }
+        if (s.setup.names.length > 1) { s.setup.names.pop(); s.setup.cpu.length = s.setup.names.length; save(); renderSetup(); }
       });
       $('players-plus').addEventListener('click', () => {
         if (s.setup.names.length < 8) {
           s.setup.names.push(`Spieler ${s.setup.names.length + 1}`);
+          s.setup.cpu[s.setup.names.length - 1] = false;
           save();
           renderSetup();
         }
@@ -520,18 +606,24 @@
       $('rounds-plus').addEventListener('click', () => {
         if (s.setup.rounds < MAX_ROUNDS) { s.setup.rounds++; save(); renderSetup(); }
       });
-      $('poker-start').addEventListener('click', () => startGame(s.setup.names, s.setup.rounds));
+      document.querySelectorAll('#cpu-level button').forEach((b) => b.addEventListener('click', () => {
+        s.setup.level = b.dataset.level;
+        save();
+        renderSetup();
+      }));
+      $('poker-start').addEventListener('click', () =>
+        startGame(s.setup.names.map((name, i) => ({ name, cpu: !!s.setup.cpu[i] })), s.setup.rounds));
       buildCubes();
       window.addEventListener('resize', sizeCubes);
       $('poker-roll').addEventListener('click', roll);
       $('commit-btn').addEventListener('click', commit);
       $('poker-menu').addEventListener('click', () => {
         showOverlay('Spiel wirklich beenden? Der Spielstand geht verloren.', [
-          { label: 'Spiel beenden', cls: 'primary', onClick: () => { s.phase = 'setup'; save(); render(); } },
+          { label: 'Spiel beenden', cls: 'primary', onClick: () => { stopAI(); s.phase = 'setup'; save(); render(); } },
           { label: 'Weiterspielen', cls: 'secondary' },
         ]);
       });
-      $('poker-again').addEventListener('click', () => startGame(s.players.map((p) => p.name), s.rounds));
+      $('poker-again').addEventListener('click', () => startGame(s.players.map((p) => ({ name: p.name, cpu: p.cpu })), s.rounds));
       $('poker-new').addEventListener('click', () => { s.phase = 'setup'; save(); render(); });
       render();
     }

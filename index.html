@@ -12,7 +12,7 @@
   <link rel="apple-touch-icon" href="icons/icon-180.png">
   <link rel="icon" type="image/png" href="icons/icon-192.png">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="css/style.css?v=4">
+  <link rel="stylesheet" href="css/style.css?v=5">
 </head>
 <body>
   <main>
@@ -43,7 +43,7 @@
 
       <h2 class="subhead">Verlauf</h2>
       <ol class="history" id="dice-history"></ol>
-      <p class="version">Würfelbox · Version 4</p>
+      <p class="version">Würfelbox · Version 5</p>
     </section>
 
     <!-- ===================== POKER ===================== -->
@@ -65,6 +65,14 @@
             </div>
           </div>
           <div id="player-names" class="player-names"></div>
+          <p class="hint left">Tippe auf 👤, damit der Computer 🤖 diesen Platz spielt.</p>
+          <div class="row-between level-row" id="cpu-level" hidden>
+            <span>Computer</span>
+            <div class="seg" role="radiogroup" aria-label="Stärke des Computers">
+              <button data-level="easy">Leicht</button>
+              <button data-level="hard">Schwer</button>
+            </div>
+          </div>
         </div>
         <div class="card">
           <div class="row-between">
@@ -159,9 +167,10 @@
     <button data-view="view-wheel"><span class="ico">🎡</span>Glücksrad</button>
   </nav>
 
-  <script src="js/poker.js?v=4"></script>
-  <script src="js/dice3d.js?v=4"></script>
-  <script src="js/poly3d.js?v=4"></script>
-  <script src="js/app.js?v=4"></script>
+  <script src="js/poker.js?v=5"></script>
+  <script src="js/dice3d.js?v=5"></script>
+  <script src="js/poly3d.js?v=5"></script>
+  <script src="js/pokerai.js?v=5"></script>
+  <script src="js/app.js?v=5"></script>
 </body>
 </html>

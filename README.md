@@ -4,7 +4,8 @@ Web-App (PWA) fürs iPhone mit drei Modi:
 
 - **Würfel** – W6, W8, W10, W12, W20, 1–6 Würfel gleichzeitig, mit Summe und Verlauf
 - **Würfelpoker** – 5 Würfel (9, 10, Bube, Dame, König, Ass), 1–8 Spieler, 1–14 Runden,
-  bis zu 3 Würfe pro Zug mit Festhalten, Kniffel-Zettel mit automatischer Punktezählung
+  bis zu 3 Würfe pro Zug mit Festhalten, Kniffel-Zettel mit automatischer Punktezählung.
+  Jeder Platz kann auch vom **Computer** 🤖 gespielt werden (Stärke „Leicht“ oder „Schwer“)
 - **Glücksrad** – eigene Einträge, wird gespeichert; optional wird der gezogene Eintrag aus dem Rad entfernt
 
 Alles läuft offline und speichert Einstellungen, Glücksrad-Einträge und ein laufendes Pokerspiel auf dem Gerät.
@@ -35,7 +36,16 @@ Würfelwerte: 9 = 1, 10 = 2, Bube = 3, Dame = 4, König = 5, Ass = 6
 | Poker (5 gleiche) | 50 |
 | Chance | Summe aller Würfel |
 
-Passt nichts, muss ein Feld mit 0 gestrichen werden. Gewinner ist, wer nach den gewählten Runden die meisten Punkte hat.
+Passt nichts, muss ein Feld mit 0 gestrichen werden.
+
+### Computergegner
+
+Im Setup auf 👤 neben einem Namen tippen, dann spielt der Computer diesen Platz.
+
+- **Schwer:** berechnet für jeden möglichen Satz festgehaltener Würfel den Erwartungswert
+  über alle Neuwürfe (exakt, mit den restlichen Würfen) und wählt das Feld mit dem besten
+  Nutzen (Punkte minus späterer Wert des Feldes, plus Bonus-Fortschritt). Im Schnitt ca. 238 Punkte bei 14 Runden.
+- **Leicht:** hält die häufigste Karte und trägt die meisten Punkte ein. Im Schnitt ca. 187 Punkte. Gewinner ist, wer nach den gewählten Runden die meisten Punkte hat.
 
 ## Entwicklung
 

@@ -1,7 +1,7 @@
 // Service Worker: hält die App offline verfügbar.
 // Bei Änderungen an den Dateien die Versionsnummer erhöhen.
-const CACHE = 'wuerfelbox-v4';
-const V = '?v=4';
+const CACHE = 'wuerfelbox-v5';
+const V = '?v=5';
 const FILES = [
   './',
   './index.html',
@@ -9,6 +9,7 @@ const FILES = [
   './js/poker.js' + V,
   './js/dice3d.js' + V,
   './js/poly3d.js' + V,
+  './js/pokerai.js' + V,
   './js/app.js' + V,
   './manifest.webmanifest',
   './icons/icon-180.png',
